@@ -1,22 +1,23 @@
 {
   "version": 2,
-  "services": {
-    "web_frontend": {
-      "root": "frontend/"
+  "builds": [
+    {
+      "src": "backend/app.py",
+      "use": "@vercel/python"
     },
-    "python_backend": {
-      "root": "backend/",
-      "entrypoint": "app.py"
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/next"
     }
-  },
+  ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "python_backend/api/$1"
+      "dest": "backend/app.py"
     },
     {
       "src": "/(.*)",
-      "dest": "web_frontend/$1"
+      "dest": "frontend/$1"
     }
   ]
 }
