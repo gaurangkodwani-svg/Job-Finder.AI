@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobFinder — Precision Career Matching Engine</title>
+  <meta name="description" content="Intelligent precision career matching engine. Compute high-dimensional semantic overlap and skill alignment against tech job listings.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Strictly limited to two font families: Plus Jakarta Sans for UI/reading, JetBrains Mono for metrics and code -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-root">
+    <!-- Top Navigation Bar -->
+    <header class="app-header" id="header">
+      <div class="header-container">
+        <div class="brand-group" onclick="switchView('match-view')">
+          <div class="brand-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <span class="brand-title">JobFinder<span class="brand-subtext">Engine</span></span>
+            <span class="brand-tag">TF-IDF Vector Matching</span>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="nav-tabs" aria-label="Main Navigation">
+          <button class="nav-tab active" data-view="match-view" onclick="switchView('match-view')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+            <span>Match Studio</span>
+          </button>
+          <button class="nav-tab" data-view="explore-view" onclick="switchView('explore-view')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>Market Catalog</span>
+          </button>
+          <button class="nav-tab" data-view="insights-view" onclick="switchView('insights-view')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+            <span>Skill Radar</span>
+          </button>
+          <button class="nav-tab" data-view="sync-view" onclick="switchView('sync-view')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Live Sync</span>
+          </button>
+        </nav>
+
+        <!-- Right User & Status Area -->
+        <div class="header-actions">
+          <div class="db-stat-pill" id="header-db-pill" onclick="switchView('explore-view')">
+            <span class="status-dot"></span>
+            <span id="header-job-count" class="font-mono">16 Roles Indexed</span>
+          </div>
+
+          <div class="user-chip" id="user-chip" onclick="toggleUserModal()">
+            <div class="user-avatar-sm" id="user-avatar-sm">AJ</div>
+            <div class="user-chip-meta">
+              <span class="user-chip-name" id="user-chip-name">Alex Johnson</span>
+              <span class="user-chip-id font-mono" id="user-chip-id">candidate</span>
+            </div>
+            <svg class="chevron-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="app-main">
+
+      <!-- VIEW 1: MATCH STUDIO (Primary Matching Flow) -->
+      <section class="view-section active" id="match-view">
+        <!-- Asymmetrical Left-Aligned Editorial Header -->
+        <div class="dashboard-hero">
+          <div class="hero-left">
+            <div class="system-meta-badge">
+              <span class="system-tag-indicator"></span>
+              <span class="font-mono">HYBRID TF-IDF + EXACT OVERLAP SCORING</span>
+            </div>
+            <h1 class="hero-title">Precision Career Alignment</h1>
+            <p class="hero-description">
+              Upload candidate credentials or load a benchmark persona. The matcher computes multi-dimensional semantic overlap, isolates exact technical skill gaps, and surfaces high-affinity roles.
+            </p>
+          </div>
+
+          <!-- Structured Asymmetrical Key Metrics Grid -->
+          <div class="hero-metrics-grid">
+            <div class="metric-block">
+              <span class="metric-label">Curated Index</span>
+              <span class="metric-value font-mono" id="hero-stat-jobs">16</span>
+              <span class="metric-note">Active listings</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-label">Matches Found</span>
+              <span class="metric-value font-mono" id="hero-stat-matches">0</span>
+              <span class="metric-note">Ranked fits</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-label">Top Alignment</span>
+              <span class="metric-value font-mono" id="hero-stat-topscore">—</span>
+              <span class="metric-note">Similarity score</span>
+            </div>
+            <div class="metric-block">
+              <span class="metric-label">Extracted Skills</span>
+              <span class="metric-value font-mono" id="hero-stat-skills">0</span>
+              <span class="metric-note">Verified tags</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workflow Stepper & Content Grid -->
+        <div class="studio-layout">
+          <!-- Left Column: Step Cards Flow -->
+          <div class="studio-flow">
+
+            <!-- Step Progress Track -->
+            <div class="stepper-bar">
+              <div class="step-node active" id="step-node-1" onclick="jumpToStep(1)">
+                <span class="step-num font-mono">01</span>
+                <span class="step-title">Account & Auth</span>
+              </div>
+              <div class="step-line" id="step-line-1"></div>
+              <div class="step-node" id="step-node-2" onclick="jumpToStep(2)">
+                <span class="step-num font-mono">02</span>
+                <span class="step-title">Resume / Persona</span>
+              </div>
+              <div class="step-line" id="step-line-2"></div>
+              <div class="step-node" id="step-node-3" onclick="jumpToStep(3)">
+                <span class="step-num font-mono">03</span>
+                <span class="step-title">Skill Extraction</span>
+              </div>
+              <div class="step-line" id="step-line-3"></div>
+              <div class="step-node" id="step-node-4" onclick="jumpToStep(4)">
+                <span class="step-num font-mono">04</span>
+                <span class="step-title">Opportunity Fit</span>
+              </div>
+            </div>
+
+            <!-- STEP 1: Account & Profile Setup -->
+            <div class="card step-panel" id="panel-step-1">
+              <div class="panel-header">
+                <div class="panel-icon-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                </div>
+                <div class="panel-headings">
+                  <h2 class="panel-title">Active Candidate Session</h2>
+                  <p class="panel-desc">Authenticated credentials used to persist match histories and custom skill records</p>
+                </div>
+                <span class="panel-badge-status font-mono" id="badge-step-1">READY</span>
+              </div>
+
+              <div class="panel-body">
+                <div class="user-active-summary" id="user-active-card">
+                  <div class="user-avatar-lg" id="user-avatar-lg">AJ</div>
+                  <div class="user-meta-details">
+                    <div class="meta-row">
+                      <strong id="active-user-name">Alex Johnson</strong>
+                      <span class="badge-tag" id="active-user-role">candidate</span>
+                      <span class="badge-tag plan-tag" id="active-user-plan">free</span>
+                    </div>
+                    <div class="meta-sub font-mono" id="active-user-email">demo@jobfinder.ai</div>
+                    <div class="meta-id font-mono" id="active-user-id-text">User ID: #1 • Session Token Active</div>
+                  </div>
+                  <button class="btn btn-outline btn-sm" onclick="toggleEditAccountForm()">Sign In / Switch</button>
+                </div>
+
+                <!-- Account Switch / Login Inline Form -->
+                <div class="account-edit-form hidden" id="account-edit-form">
+                  <div class="form-grid">
+                    <div class="form-field">
+                      <label for="input-email">Email Address</label>
+                      <input type="email" id="input-email" placeholder="candidate@example.com" value="demo@jobfinder.ai">
+                    </div>
+                    <div class="form-field">
+                      <label for="input-password">Password</label>
+                      <input type="password" id="input-password" placeholder="Account password" value="DemoPassword123!">
+                    </div>
+                    <div class="form-field">
+                      <label for="input-name">Candidate Name (For registration)</label>
+                      <input type="text" id="input-name" placeholder="Full Name" value="Alex Johnson">
+                    </div>
+                  </div>
+                  <div class="form-actions-row">
+                    <button class="btn btn-primary btn-sm" onclick="handleAuthLogin()">Sign In</button>
+                    <button class="btn btn-outline btn-sm" onclick="handleAuthRegister()">Register New</button>
+                    <button class="btn btn-ghost btn-sm" onclick="loadDemoUser()">Reset to Demo</button>
+                    <button class="btn btn-ghost btn-sm" onclick="toggleEditAccountForm()">Cancel</button>
+                  </div>
+                </div>
+
+                <div class="next-step-row">
+                  <button class="btn btn-primary" onclick="proceedToStep(2)">
+                    <span>Next: Select Persona or Upload Resume</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2: Resume Input Hub -->
+            <div class="card step-panel" id="panel-step-2">
+              <div class="panel-header">
+                <div class="panel-icon-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <div class="panel-headings">
+                  <h2 class="panel-title">Resume & Career Profile</h2>
+                  <p class="panel-desc">Supply candidate experience through 1-click test personas, file upload, or raw text input</p>
+                </div>
+                <span class="panel-badge-status font-mono" id="badge-step-2">AWAITING INPUT</span>
+              </div>
+
+              <div class="panel-body">
+                <!-- 1-Click Persona Presets -->
+                <div class="preset-section">
+                  <div class="preset-label">
+                    <span class="preset-title">⚡ Benchmark Technical Personas</span>
+                    <span class="preset-hint">Load pre-configured engineer backgrounds to evaluate vector scoring:</span>
+                  </div>
+                  <div class="persona-chips">
+                    <button class="persona-chip" onclick="loadPersonaPreset('frontend')">
+                      <div class="persona-info">
+                        <strong>Senior Frontend Engineer</strong>
+                        <span class="font-mono">React • Next.js • TypeScript • Tailwind</span>
+                      </div>
+                    </button>
+                    <button class="persona-chip" onclick="loadPersonaPreset('ai')">
+                      <div class="persona-info">
+                        <strong>Machine Learning Engineer</strong>
+                        <span class="font-mono">Python • PyTorch • LLMs • Transformers</span>
+                      </div>
+                    </button>
+                    <button class="persona-chip" onclick="loadPersonaPreset('devops')">
+                      <div class="persona-info">
+                        <strong>DevOps & SRE Specialist</strong>
+                        <span class="font-mono">Kubernetes • Docker • Terraform • Go</span>
+                      </div>
+                    </button>
+                    <button class="persona-chip" onclick="loadPersonaPreset('intern')">
+                      <div class="persona-info">
+                        <strong>Full-Stack Developer Intern</strong>
+                        <span class="font-mono">Node.js • React • PostgreSQL • Python</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Drag & Drop Zone -->
+                <div class="dropzone" id="resume-dropzone" onclick="triggerFileInput()">
+                  <input type="file" id="file-upload-input" accept=".txt,.md,.json,.pdf,.doc,.docx" class="hidden-file-input" onchange="handleFileSelected(event)">
+                  <div class="dropzone-inner">
+                    <div class="dropzone-icon">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    </div>
+                    <div class="dropzone-text">
+                      <p class="dropzone-main"><strong>Choose a file</strong> or drag and drop your resume</p>
+                      <p class="dropzone-sub">Supports plain text, Markdown, JSON, and PDF text streams</p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Manual Paste Textarea -->
+                <div class="textarea-container">
+                  <div class="textarea-header">
+                    <label for="resume-input-text">Resume / Work History Text</label>
+                    <span class="char-badge font-mono" id="char-word-counter">0 words • 0 chars</span>
+                  </div>
+                  <textarea id="resume-input-text" rows="6" placeholder="Paste technical experience, key achievements, frameworks, and tools..."></textarea>
+                </div>
+
+                <div class="panel-footer-row">
+                  <button class="btn btn-primary" id="btn-parse-resume" onclick="handleAnalyzeResume()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                    <span>Extract Skills & Analyze Resume</span>
+                  </button>
+                  <button class="btn btn-ghost" onclick="clearResumeInput()">Clear Text</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 3: Skill Intelligence & Extraction Preview -->
+            <div class="card step-panel" id="panel-step-3">
+              <div class="panel-header">
+                <div class="panel-icon-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
+                <div class="panel-headings">
+                  <h2 class="panel-title">Extracted Skill Matrix</h2>
+                  <p class="panel-desc">Deterministic catalog of identified hard proficiencies, soft skills, and target categories</p>
+                </div>
+                <span class="panel-badge-status font-mono" id="badge-step-3">PENDING</span>
+              </div>
+
+              <div class="panel-body">
+                <div class="extract-meta-bar">
+                  <span class="badge-tag font-mono parse-speed" id="parse-speed-pill">⚡ Latency: 0ms</span>
+                  <span class="badge-tag font-mono" id="skills-total-pill">0 Technical Skills Identified</span>
+                </div>
+
+                <div class="skills-grid-preview">
+                  <!-- Hard Skills -->
+                  <div class="skill-category-box">
+                    <div class="category-box-header">
+                      <span class="cat-title">Verified Technical Skills</span>
+                      <span class="cat-count font-mono" id="hard-skills-count">0</span>
+                    </div>
+                    <div class="tags-flex" id="container-hard-skills">
+                      <span class="tag-empty-msg">No skills extracted yet. Complete Step 2 to parse profile.</span>
+                    </div>
+                    <div class="add-skill-inline">
+                      <input type="text" id="custom-skill-input" placeholder="Add custom skill (e.g. GraphQL, Go)" onkeydown="if(event.key==='Enter') addCustomSkill()">
+                      <button class="btn btn-ghost btn-xs" onclick="addCustomSkill()">+ Add</button>
+                    </div>
+                  </div>
+
+                  <!-- Soft Skills & Target Categories -->
+                  <div class="skill-side-column">
+                    <div class="skill-category-box">
+                      <div class="category-box-header">
+                        <span class="cat-title">Core Competencies</span>
+                        <span class="cat-count font-mono" id="soft-skills-count">0</span>
+                      </div>
+                      <div class="tags-flex" id="container-soft-skills">
+                        <span class="tag-empty-msg">None detected</span>
+                      </div>
+                    </div>
+
+                    <div class="skill-category-box">
+                      <div class="category-box-header">
+                        <span class="cat-title">Inferred Role Alignment</span>
+                      </div>
+                      <div class="tags-flex" id="container-role-targets">
+                        <span class="tag-empty-msg">None detected</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="panel-footer-row mt-4">
+                  <button class="btn btn-primary" id="btn-run-match" onclick="handleRunMatching()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    <span>Run Match Scoring Engine</span>
+                  </button>
+                  <span class="hint-text">Evaluates profile against all active jobs in SQLite database</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 4: AI Ranked Matches Results -->
+            <div class="card step-panel" id="panel-step-4">
+              <div class="panel-header">
+                <div class="panel-icon-wrap">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>
+                </div>
+                <div class="panel-headings">
+                  <h2 class="panel-title">Ranked Career Matches</h2>
+                  <p class="panel-desc">Opportunities sorted by composite semantic vector similarity and mandatory skill ratio</p>
+                </div>
+                <span class="panel-badge-status font-mono" id="badge-step-4">0 MATCHES</span>
+              </div>
+
+              <div class="panel-body">
+                <!-- Matches Controls Bar -->
+                <div class="matches-filter-bar">
+                  <div class="filter-pills-group">
+                    <button class="filter-pill active" onclick="filterMatches('all', this)">All Results</button>
+                    <button class="filter-pill" onclick="filterMatches('excellent', this)">≥ 70% Excellent Fit</button>
+                    <button class="filter-pill" onclick="filterMatches('good', this)">45% - 69% Good Fit</button>
+                    <button class="filter-pill" onclick="filterMatches('potential', this)">&lt; 45% Potential</button>
+                  </div>
+                  <div class="matches-status-text font-mono" id="matches-status-info">
+                    Showing top opportunities
+                  </div>
+                </div>
+
+                <!-- Loading State Spinner -->
+                <div class="match-loading-overlay hidden" id="match-loading-overlay">
+                  <div class="system-spinner"></div>
+                  <h4 class="loading-title">Calculating TF-IDF & Skill Vectors...</h4>
+                  <p class="loading-sub font-mono">Comparing resume tokens with catalog corpus</p>
+                </div>
+
+                <!-- Matches Cards Container -->
+                <div class="matches-deck" id="matches-deck">
+                  <div class="empty-matches-state" id="matches-empty-state">
+                    <div class="empty-icon-box">🎯</div>
+                    <h3>No Matches Computed Yet</h3>
+                    <p>Complete Steps 2 & 3 to extract candidate skills, then run the match scoring engine.</p>
+                    <button class="btn btn-outline btn-sm" onclick="loadPersonaPreset('frontend')">Load Frontend Demo Persona</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column: Sticky Studio Intelligence Bar -->
+          <aside class="studio-sidebar">
+            <!-- Session Stats Card -->
+            <div class="card sidebar-card">
+              <h3 class="sidebar-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                <span>Matching Metrics</span>
+              </h3>
+              <div class="sidebar-stat-list">
+                <div class="sidebar-stat-item">
+                  <span class="side-lbl">Index Size</span>
+                  <strong class="side-val font-mono" id="side-stat-jobs">16 Jobs</strong>
+                </div>
+                <div class="sidebar-stat-item">
+                  <span class="side-lbl">Candidate</span>
+                  <strong class="side-val font-mono" id="side-stat-user">Alex Johnson</strong>
+                </div>
+                <div class="sidebar-stat-item">
+                  <span class="side-lbl">Skills Found</span>
+                  <strong class="side-val font-mono" id="side-stat-skills">0 Detected</strong>
+                </div>
+                <div class="sidebar-stat-item">
+                  <span class="side-lbl">Top Match Band</span>
+                  <strong class="side-val font-mono" id="side-stat-quality">—</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Mini Skill Demand Widget -->
+            <div class="card sidebar-card">
+              <h3 class="sidebar-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span>Market Demand Frequency</span>
+              </h3>
+              <div class="demand-bars" id="sidebar-demand-bars">
+                <!-- Populated dynamically -->
+              </div>
+              <button class="btn btn-ghost btn-xs w-full mt-3" onclick="switchView('insights-view')">View Full Skill Radar →</button>
+            </div>
+
+            <!-- Architectural Engine Breakdown -->
+            <div class="card sidebar-card">
+              <h3 class="sidebar-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <span>Engine Specifications</span>
+              </h3>
+              <ul class="engine-steps-list">
+                <li>
+                  <span class="bullet-idx font-mono">01</span>
+                  <div>
+                    <strong>TF-IDF Vector Space (55%)</strong>
+                    <p>Measures inverse document frequency across job requirements.</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="bullet-idx font-mono">02</span>
+                  <div>
+                    <strong>Skill Overlap Ratio (45%)</strong>
+                    <p>Deterministic verification of mandatory role technologies.</p>
+                  </div>
+                </li>
+                <li>
+                  <span class="bullet-idx font-mono">03</span>
+                  <div>
+                    <strong>Skill Gap Analysis</strong>
+                    <p>Identifies exact delta keywords to guide candidate upskilling.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- VIEW 2: EXPLORE MARKET (Browse All Jobs) -->
+      <section class="view-section" id="explore-view">
+        <div class="section-title-wrap">
+          <div>
+            <h1 class="page-title">Market Catalog</h1>
+            <p class="page-subtitle">Inspect all indexed opportunities with required skills and verified salary ranges</p>
+          </div>
+          <button class="btn btn-primary" onclick="switchView('match-view')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span>Match With My Resume</span>
+          </button>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="card filter-bar-card">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="market-search-input" placeholder="Search by job title, company, skill (e.g. React, Python, Remote)..." oninput="debounceMarketSearch()">
+            <button class="btn btn-ghost btn-sm" onclick="clearMarketSearch()">Clear</button>
+          </div>
+
+          <div class="filter-controls-row">
+            <div class="filter-group">
+              <span class="filter-lbl font-mono">DOMAIN:</span>
+              <div class="chips-row" id="explore-category-chips">
+                <button class="chip-filter active" onclick="setExploreCategory('all', this)">All</button>
+                <button class="chip-filter" onclick="setExploreCategory('Frontend', this)">Frontend</button>
+                <button class="chip-filter" onclick="setExploreCategory('Backend', this)">Backend</button>
+                <button class="chip-filter" onclick="setExploreCategory('ML/AI', this)">ML / AI</button>
+                <button class="chip-filter" onclick="setExploreCategory('DevOps', this)">DevOps</button>
+                <button class="chip-filter" onclick="setExploreCategory('Data', this)">Data</button>
+                <button class="chip-filter" onclick="setExploreCategory('Mobile', this)">Mobile</button>
+              </div>
+            </div>
+
+            <div class="filter-group">
+              <span class="filter-lbl font-mono">TYPE:</span>
+              <div class="chips-row" id="explore-type-chips">
+                <button class="chip-filter active" onclick="setExploreType('all', this)">All Types</button>
+                <button class="chip-filter" onclick="setExploreType('job', this)">Full-Time</button>
+                <button class="chip-filter" onclick="setExploreType('internship', this)">Internships</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Jobs Grid -->
+        <div class="market-jobs-grid" id="market-jobs-grid">
+          <!-- Populated by JavaScript -->
+        </div>
+      </section>
+
+      <!-- VIEW 3: SKILL INTELLIGENCE & RADAR -->
+      <section class="view-section" id="insights-view">
+        <div class="section-title-wrap">
+          <div>
+            <h1 class="page-title">Market Skill Radar</h1>
+            <p class="page-subtitle">Real-time demand metrics, category distribution, and candidate skill coverage</p>
+          </div>
+          <button class="btn btn-outline" onclick="loadMarketStats()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+            <span>Refresh Analytics</span>
+          </button>
+        </div>
+
+        <div class="insights-grid">
+          <div class="card insights-card">
+            <h2 class="card-title-lg">Top 10 In-Demand Skills</h2>
+            <p class="card-desc">Ranked by keyword appearance frequency across all active job listings</p>
+            <div class="skills-demand-bars-full" id="insights-skills-bars">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <div class="card insights-card">
+            <h2 class="card-title-lg">Industry Domain Distribution</h2>
+            <p class="card-desc">Proportion of tech roles indexed across software engineering sectors</p>
+            <div class="category-distribution-list" id="insights-category-list">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: LIVE ADZUNA SYNC CONSOLE -->
+      <section class="view-section" id="sync-view">
+        <div class="section-title-wrap">
+          <div>
+            <h1 class="page-title">Live Market Ingestion</h1>
+            <p class="page-subtitle">Ingest real-time engineering listings directly from external market providers</p>
+          </div>
+          <div class="api-status-badge">
+            <span class="status-dot"></span>
+            <span class="font-mono">Live API Integration</span>
+          </div>
+        </div>
+
+        <div class="card sync-console-card">
+          <div class="console-header">
+            <div>
+              <h3>Execute Market Ingestion Query</h3>
+              <p>Pull live postings, run local skill extraction, and re-train TF-IDF vector matrix</p>
+            </div>
+          </div>
+
+          <div class="query-pills-row">
+            <span class="pill-label font-mono">QUERIES:</span>
+            <button class="query-pill" onclick="setSyncQuery('software engineer')">Software Engineer</button>
+            <button class="query-pill" onclick="setSyncQuery('frontend react developer')">Frontend React</button>
+            <button class="query-pill" onclick="setSyncQuery('machine learning python')">Machine Learning</button>
+            <button class="query-pill" onclick="setSyncQuery('software engineer intern')">Internships</button>
+            <button class="query-pill" onclick="setSyncQuery('devops cloud')">DevOps & Cloud</button>
+          </div>
+
+          <div class="sync-input-row">
+            <input type="text" id="sync-query-input" value="software engineer" placeholder="Search query (e.g. React Developer, Data Scientist)">
+            <button class="btn btn-primary" id="btn-trigger-sync" onclick="handleTriggerSync()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+              <span>Sync Live Jobs</span>
+            </button>
+            <button class="btn btn-outline" onclick="handleRefreshStale()">Purge Stale Cache</button>
+          </div>
+
+          <div class="sync-log-card" id="sync-log-card">
+            <div class="log-title font-mono">Ingestion Output:</div>
+            <pre class="log-terminal font-mono" id="sync-log-terminal">Ready. Click "Sync Live Jobs" to query live API provider.</pre>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- SLIDE-OVER JOB DETAIL DRAWER -->
+  <div class="drawer-backdrop" id="job-drawer-backdrop" onclick="closeJobDrawer()"></div>
+  <aside class="job-drawer" id="job-drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-company-badge font-mono" id="drawer-company-name">Company</div>
+        <h2 class="drawer-job-title" id="drawer-job-title">Job Title</h2>
+      </div>
+      <button class="btn-close-drawer" onclick="closeJobDrawer()" aria-label="Close Drawer">✕</button>
+    </div>
+
+    <div class="drawer-body" id="drawer-body">
+      <!-- Overview Pills -->
+      <div class="drawer-meta-pills" id="drawer-meta-pills">
+        <span class="meta-pill font-mono" id="drawer-pill-salary">💰 $150k - $190k</span>
+        <span class="meta-pill" id="drawer-pill-location">📍 Remote</span>
+        <span class="meta-pill" id="drawer-pill-type">💼 Full-time</span>
+        <span class="meta-pill" id="drawer-pill-category">🏷️ Frontend</span>
+      </div>
+
+      <!-- Match Score Breakdown (if in match mode) -->
+      <div class="drawer-section match-analysis-box" id="drawer-match-section">
+        <div class="match-gauge-row">
+          <div class="gauge-ring-wrap">
+            <span class="gauge-percentage font-mono" id="drawer-match-percent">88%</span>
+          </div>
+          <div>
+            <h4 class="gauge-title" id="drawer-band-title">Excellent Alignment</h4>
+            <p class="gauge-desc" id="drawer-why-matched">Matches your core technical stack.</p>
+          </div>
+        </div>
+
+        <div class="skills-comparison-grid">
+          <div class="comp-box verified">
+            <h5 class="font-mono">VERIFIED MATCHED SKILLS</h5>
+            <div class="comp-tags" id="drawer-matched-skills"></div>
+          </div>
+          <div class="comp-box gap">
+            <h5 class="font-mono">RECOMMENDED UPSKILLING GAP</h5>
+            <div class="comp-tags" id="drawer-missing-skills"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="drawer-section">
+        <h4 class="drawer-section-title">Position Description</h4>
+        <div class="drawer-description" id="drawer-description-text">
+          Full job description text.
+        </div>
+      </div>
+
+      <!-- Tailored Pitch Generator -->
+      <div class="drawer-section pitch-generator-box">
+        <div class="pitch-header">
+          <h4 class="drawer-section-title">Candidate Introduction Note</h4>
+          <button class="btn btn-ghost btn-xs" onclick="generateTailoredPitch()">Regenerate</button>
+        </div>
+        <p class="pitch-hint">Tailored introductory snippet synthesized from your extracted qualifications:</p>
+        <textarea id="drawer-pitch-textarea" rows="5" readonly></textarea>
+        <button class="btn btn-outline btn-xs mt-2" onclick="copyTailoredPitch()">Copy Note to Clipboard</button>
+      </div>
+    </div>
+
+    <div class="drawer-footer">
+      <a href="#" id="drawer-apply-link" target="_blank" rel="noopener noreferrer" class="btn btn-primary flex-1">
+        <span>Proceed to Application</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/></svg>
+      </a>
+      <button class="btn btn-ghost" onclick="closeJobDrawer()">Dismiss</button>
+    </div>
+  </aside>
+
+  <!-- AUTH / USER SESSION MODAL -->
+  <div class="modal-backdrop" id="user-modal-backdrop" onclick="toggleUserModal()">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Candidate Authentication</h3>
+        <button class="btn-close-modal" onclick="toggleUserModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">Sign in with an existing account or register new credentials. PBKDF2 hashed sessions persist your custom matches securely.</p>
+        <div class="form-field">
+          <label for="modal-email-input">Email Address</label>
+          <input type="email" id="modal-email-input" placeholder="user@example.com" value="demo@jobfinder.ai">
+        </div>
+        <div class="form-field mt-3">
+          <label for="modal-pass-input">Password</label>
+          <input type="password" id="modal-pass-input" placeholder="••••••••" value="DemoPassword123!">
+        </div>
+        <div class="form-field mt-3" id="modal-name-group">
+          <label for="modal-name-input">Full Name (New Registrations)</label>
+          <input type="text" id="modal-name-input" placeholder="Alex Johnson" value="Alex Johnson">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="handleModalLogin()">Sign In</button>
+        <button class="btn btn-outline" onclick="handleModalRegister()">Create Account</button>
+        <button class="btn btn-ghost" onclick="loadDemoUser(); toggleUserModal();">Demo Account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <!-- Application Script -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
