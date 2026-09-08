@@ -1,30 +1,22 @@
 {
-  "builds": [
-    {
-      "src": "backend/app.py",
-      "use": "@vercel/python"
+  "version": 2,
+  "services": {
+    "web_frontend": {
+      "root": "frontend/"
+    },
+    "python_backend": {
+      "root": "backend/",
+      "entrypoint": "app.py"
     }
-  ],
+  },
   "routes": [
     {
-      "src": "/static/(.*)",
-      "dest": "frontend/$1"
-    },
-    {
-      "src": "/app.js",
-      "dest": "frontend/app.js"
-    },
-    {
-      "src": "/style.css",
-      "dest": "frontend/style.css"
-    },
-    {
       "src": "/api/(.*)",
-      "dest": "backend/app.py"
+      "dest": "python_backend/api/$1"
     },
     {
       "src": "/(.*)",
-      "dest": "backend/app.py"
+      "dest": "web_frontend/$1"
     }
   ]
 }
