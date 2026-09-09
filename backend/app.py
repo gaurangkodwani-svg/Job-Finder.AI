@@ -48,7 +48,7 @@ logger.info("Static files directory resolved to: %s", STATIC_DIR)
 SEED_SQL_PATH = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "database", "seed.sql"))
 
 # On Vercel, the filesystem is read-only except /tmp — place the SQLite DB there
-if os.getenv("VERCEL"):
+if os.getenv("VERCEL") or os.path.abspath(__file__).startswith("/var/task/"):
     DB_PATH = "/tmp/jobfinder.db"
 else:
     DB_PATH = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "database", "jobfinder.db"))
