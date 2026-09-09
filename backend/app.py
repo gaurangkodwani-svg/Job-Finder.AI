@@ -39,6 +39,12 @@ logger = logging.getLogger("jobfinder")
 load_dotenv()
 
 STATIC_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "frontend"))
+# Fallback: when the repo is deployed with backend/ as the root (e.g. PaaS), resolve from cwd
+if not os.path.isdir(STATIC_DIR):
+    STATIC_DIR = os.path.normpath(os.path.join(os.getcwd(), "frontend"))
+if not os.path.isdir(STATIC_DIR):
+    STATIC_DIR = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "frontend"))
+logger.info("Static files directory resolved to: %s", STATIC_DIR)
 SEED_SQL_PATH = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "database", "seed.sql"))
 
 # On Vercel, the filesystem is read-only except /tmp — place the SQLite DB there
