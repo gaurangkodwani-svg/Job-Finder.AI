@@ -73,6 +73,11 @@ Quick learner, strong communication skills, eager to contribute and learn within
 
 // Application Bootstrap
 document.addEventListener('DOMContentLoaded', async () => {
+  // Configure PDF.js worker — required before any getDocument() call
+  if (typeof pdfjsLib !== 'undefined') {
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168126/build/pdf.worker.min.js';
+  }
   initTextareaWordCounter();
   initDragAndDrop();
   restoreSession();
@@ -501,20 +506,39 @@ async function processResumeFile(file) {
     return;
   }
 
-  if (file.size > 512 * 1024) {
-    showToast('File is too large (max 512 KB). Please paste your resume text directly.', 'error');
+  if (file.size > 8 * 1024 * 1024) {
+    showToast('File is too large (max 8 MB). Please paste your resume text directly.', 'error');
     return;
   }
 
-  try {
-    let content;
-    if (ext === '.pdf') {
-      if (typeof pdfjsLib === 'undefined') {
-        showToast('PDF reader library failed to load. Please paste your resume text directly.', 'error');
-        return;
+  // --- Try client-side extraction first (PDF.js for PDFs, FileReader for text) ---
+  if (ext !== '.pdf') {
+    // Non-PDF: read as text directly
+    try {
+      const content = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsText(file);
+      });
+      const ta = document.getElementById('resume-input-text');
+      if (ta) {
+        ta.value = content;
+        ta.dispatchEvent(new Event('input'));
+        showToast(`Loaded "${file.name}" (${(file.size / 1024).toFixed(1)} KB)`, 'success');
       }
+    } catch (err) {
+      showToast(`Failed to read "${file.name}": ${err.message}`, 'error');
+    }
+    return;
+  }
+
+  // --- PDF: attempt client-side PDF.js extraction first ---
+  if (typeof pdfjsLib !== 'undefined') {
+    try {
       showToast(`Extracting text from "${file.name}"...`, 'info');
-      const loadingTask = pdfjsLib.getDocument({ data: await file.arrayBuffer() });
+      const arrayBuf = await file.arrayBuffer();
+      const loadingTask = pdfjsLib.getDocument({ data: arrayBuf });
       const pdf = await loadingTask.promise;
       let text = '';
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -523,24 +547,77 @@ async function processResumeFile(file) {
         text += textContent.items.map(item => item.str).join(' ') + '\n';
       }
       await pdf.destroy();
-      content = text;
-    } else {
-      content = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsText(file);
-      });
+
+      if (text.trim().length >= 10) {
+        const ta = document.getElementById('resume-input-text');
+        if (ta) {
+          ta.value = text;
+          ta.dispatchEvent(new Event('input'));
+          showToast(`PDF extracted client-side — "${file.name}" (${pdf.numPages} pages)`, 'success');
+        }
+        return; // Client-side succeeded — done
+      }
+      // Text too short (scanned / image PDF) — fall through to server
+      console.warn('PDF.js returned empty text — falling back to server-side extraction.');
+    } catch (clientErr) {
+      console.warn('PDF.js extraction failed, falling back to server upload:', clientErr);
+    }
+  }
+
+  // --- Server-side fallback: upload to /api/users/:id/profile/upload ---
+  try {
+    showToast(`Uploading "${file.name}" for server-side PDF extraction...`, 'info');
+    const userId = state.user.id || 1;
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers = {};
+    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
+
+    const res = await fetch(`/api/users/${userId}/profile/upload`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = (typeof data.detail === 'string') ? data.detail : `Upload failed (${res.status})`;
+      showToast(msg, 'error');
+      return;
     }
 
+    // Success — populate state and textarea
+    const extracted = data.extracted || {};
+    state.profile = {
+      raw_text: extracted.experience || '',
+      hard_skills: extracted.hard_skills || [],
+      soft_skills: extracted.soft_skills || [],
+      target_categories: extracted.target_categories || [],
+      parse_ms: data.parse_ms || 25
+    };
+
+    // Also put extracted text snippet into textarea for visibility
     const ta = document.getElementById('resume-input-text');
     if (ta) {
-      ta.value = content;
+      ta.value = extracted.experience || `[PDF extracted — ${data.raw_text_length || 0} chars]`;
       ta.dispatchEvent(new Event('input'));
-      showToast(`Loaded "${file.name}" (${(file.size / 1024).toFixed(1)} KB)`, 'success');
     }
-  } catch (err) {
-    showToast('Failed to read the file. Please paste your resume text directly.', 'error');
+
+    renderExtractedSkills();
+    proceedToStep(3);
+    const badge2 = document.getElementById('badge-step-2');
+    if (badge2) badge2.textContent = 'ANALYZED';
+    const badge3 = document.getElementById('badge-step-3');
+    if (badge3) badge3.textContent = 'VERIFIED';
+
+    showToast(
+      `PDF parsed server-side — ${extracted.hard_skills?.length || 0} skills identified in ${data.parse_ms}ms`,
+      'success'
+    );
+  } catch (serverErr) {
+    showToast('PDF upload failed. Please paste your resume text directly.', 'error');
+    console.error('Server-side PDF upload error:', serverErr);
   }
 }
 

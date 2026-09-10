@@ -950,6 +950,155 @@ async def get_profile(user_id: int):
 
 
 # ==============================================================================
+# Resume File Upload Endpoint (PDF / TXT — server-side text extraction)
+# ==============================================================================
+
+ALLOWED_RESUME_EXTENSIONS = {'.pdf', '.txt', '.md', '.rtf'}
+MAX_RESUME_BYTES = 8 * 1024 * 1024  # 8 MB
+def _extract_text_from_pdf(data: bytes) -> str:
+    """Extract plain text from a PDF binary using pdfminer.six (pure Python)."""
+    try:
+        from pdfminer.high_level import extract_text as pdfminer_extract
+        from pdfminer.pdfparser import PDFSyntaxError
+    except ImportError:
+        raise HTTPException(
+            status_code=501,
+            detail="PDF extraction requires pdfminer.six. Install it with: pip install pdfminer.six"
+        )
+    try:
+        text = pdfminer_extract(io.BytesIO(data))
+        return (text or "").strip()
+    except Exception as e:
+        logger.warning("pdfminer PDF extraction failed: %s", e)
+        raise HTTPException(status_code=422, detail=f"Could not extract text from PDF: {e}")
+
+
+@app.post("/api/users/{user_id}/profile/upload")
+async def upload_resume_file(user_id: int, file: UploadFile = File(...)):
+    """
+    Accept a resume as a multipart file upload (.pdf, .txt, .md, .rtf).
+    Extracts raw text server-side (PDF via PyMuPDF), then runs skill
+    extraction and saves the profile — identical to the text-paste endpoint.
+    """
+    # Validate user exists
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM users WHERE id = ?", (user_id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="User not found")
+    conn.close()
+
+    # Validate extension
+    filename = file.filename or ""
+    ext = ("." + filename.rsplit(".", 1)[-1]).lower() if "." in filename else ""
+    if ext not in ALLOWED_RESUME_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Allowed: {', '.join(sorted(ALLOWED_RESUME_EXTENSIONS))}"
+        )
+
+    # Read file bytes with size cap
+    data = await file.read(MAX_RESUME_BYTES + 1)
+    if len(data) > MAX_RESUME_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds maximum size of {MAX_RESUME_BYTES // (1024 * 1024)} MB."
+        )
+
+    # Extract text
+    if ext == ".pdf":
+        raw_text = _extract_text_from_pdf(data)
+    else:
+        try:
+            raw_text = data.decode("utf-8").strip()
+        except UnicodeDecodeError:
+            raw_text = data.decode("latin-1", errors="replace").strip()
+
+    if len(raw_text) < 10:
+        raise HTTPException(
+            status_code=422,
+            detail="Extracted text is too short. The PDF may be scanned/image-based or password-protected."
+        )
+
+    raw_text = raw_text[:150000]
+
+    # Run skill extraction (same pipeline as text endpoint)
+    start_t = time.time()
+    hard_skills, soft_skills, target_categories = extract_skills_from_text(raw_text)
+
+    if GROQ_API_KEY and len(hard_skills) < 3:
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(
+                    'https://api.groq.com/openai/v1/chat/completions',
+                    headers={'Authorization': f'Bearer {GROQ_API_KEY}'},
+                    json={
+                        'model': 'llama-3.1-70b-versatile',
+                        'messages': [{
+                            'role': 'system',
+                            'content': 'Extract technical skills from resume text. Return JSON: {"hard_skills": ["skill1"], "soft_skills": ["skill"]}'
+                        }, {
+                            'role': 'user',
+                            'content': raw_text[:3000]
+                        }],
+                        'response_format': {'type': 'json_object'},
+                        'temperature': 0.1,
+                        'max_tokens': 200
+                    },
+                    timeout=5.0
+                )
+                if resp.status_code == 200:
+                    parsed = json.loads(resp.json()['choices'][0]['message']['content'])
+                    if parsed.get('hard_skills'):
+                        hard_skills = sorted(list(set(hard_skills + [s.lower() for s in parsed['hard_skills']])))
+                    if parsed.get('soft_skills'):
+                        soft_skills = sorted(list(set(soft_skills + [s.title() for s in parsed['soft_skills']])))
+        except Exception as e:
+            logger.debug("Groq augmentation skipped during file upload: %s", e)
+
+    parse_ms = max(int((time.time() - start_t) * 1000), 25)
+    experience_snippet = raw_text[:280].strip()
+
+    # Persist profile
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO profiles (user_id, raw_text, hard_skills, soft_skills, experience,
+                            target_categories, embedding, parse_ms, parser)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        raw_text,
+        json.dumps(hard_skills),
+        json.dumps(soft_skills),
+        experience_snippet,
+        json.dumps(target_categories),
+        None,
+        parse_ms,
+        f"upload_{ext[1:]}_pymupdf_v1"
+    ))
+    profile_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+
+    return {
+        "id": profile_id,
+        "user_id": user_id,
+        "filename": filename,
+        "file_ext": ext,
+        "raw_text_length": len(raw_text),
+        "parse_ms": parse_ms,
+        "extracted": {
+            "hard_skills": hard_skills,
+            "soft_skills": soft_skills,
+            "target_categories": target_categories,
+            "experience": experience_snippet
+        }
+    }
+
+
+# ==============================================================================
 # Job Catalog & Intelligence Endpoints
 # ==============================================================================
 
