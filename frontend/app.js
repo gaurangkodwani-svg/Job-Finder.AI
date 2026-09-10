@@ -485,17 +485,17 @@ function handleFileSelected(event) {
   }
 }
 
-function processResumeFile(file) {
+async function processResumeFile(file) {
   const ALLOWED_TEXT_TYPES = [
     'text/plain', 'text/markdown', 'text/csv', 'text/html',
-    'application/json', 'application/xml'
+    'application/json', 'application/xml', 'application/pdf'
   ];
-  const ALLOWED_EXTENSIONS = ['.txt', '.md', '.csv', '.json', '.xml', '.html', '.rtf'];
+  const ALLOWED_EXTENSIONS = ['.txt', '.md', '.csv', '.json', '.xml', '.html', '.rtf', '.pdf'];
   const ext = '.' + (file.name.split('.').pop() || '').toLowerCase();
 
   if (!ALLOWED_TEXT_TYPES.includes(file.type) && !ALLOWED_EXTENSIONS.includes(ext)) {
     showToast(
-      `"${file.name}" is not a supported text file. Please upload a .txt, .md, or other plain-text format, or paste your resume content directly.`,
+      `"${file.name}" is not a supported text file. Please upload a .txt, .md, .pdf, or other supported format, or paste your resume content directly.`,
       'error'
     );
     return;
@@ -506,20 +506,42 @@ function processResumeFile(file) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onerror = () => {
-    showToast('Failed to read the file. Please paste your resume text directly.', 'error');
-  };
-  reader.onload = (e) => {
-    const content = e.target.result;
+  try {
+    let content;
+    if (ext === '.pdf') {
+      if (typeof pdfjsLib === 'undefined') {
+        showToast('PDF reader library failed to load. Please paste your resume text directly.', 'error');
+        return;
+      }
+      showToast(`Extracting text from "${file.name}"...`, 'info');
+      const loadingTask = pdfjsLib.getDocument({ data: await file.arrayBuffer() });
+      const pdf = await loadingTask.promise;
+      let text = '';
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        text += textContent.items.map(item => item.str).join(' ') + '\n';
+      }
+      await pdf.destroy();
+      content = text;
+    } else {
+      content = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.onload = (e) => resolve(e.target.result);
+        reader.readAsText(file);
+      });
+    }
+
     const ta = document.getElementById('resume-input-text');
     if (ta) {
       ta.value = content;
       ta.dispatchEvent(new Event('input'));
       showToast(`Loaded "${file.name}" (${(file.size / 1024).toFixed(1)} KB)`, 'success');
     }
-  };
-  reader.readAsText(file);
+  } catch (err) {
+    showToast('Failed to read the file. Please paste your resume text directly.', 'error');
+  }
 }
 
 /* ==========================================================================
